@@ -282,6 +282,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
     <div class="fp-row">
       <input type="text" class="fp-name" id="fpFoodName" placeholder="食物名称">
       <input type="number" class="fp-cal" id="fpFoodCal" placeholder="热量" min="0">
+      <input type="number" class="fp-qty" id="fpFoodQty" value="1" min="1" title="数量" style="width:45px;background:#2a2a4a;color:#e0e0e0;border:1px solid #3a3a5a;padding:6px 4px;border-radius:5px;font-size:0.82rem;text-align:center;">
     </div>
     <div class="fp-row">
       <select id="fpShop" onchange="onFpShopChange()">
@@ -479,10 +480,12 @@ function renderTimeline() {
         if (item.foods && item.foods.length > 0) {
           html += `<div class="tl-foods">`;
           item.foods.forEach((f, fi) => {
+            const qty = f.qty || 1;
+            const total = (f.calories || 0) * qty;
             html += `<div class="tl-food-row">
-              <span class="fname">${escHtml(f.food)}</span>
+              <span class="fname">${escHtml(f.food)}${qty > 1 ? `<span style="color:#888;font-size:0.7rem;"> x${qty}</span>` : ''}</span>
               ${f.shop ? `<span class="fpi-shop" style="font-size:0.65rem;color:#4fc3f7;background:#1a1a2e;padding:0px 5px;border-radius:6px;">${escHtml(f.shop)}</span>` : ''}
-              <span class="fcal">${f.calories} kcal</span>
+              <span class="fcal">${total} kcal</span>
               <button class="fdel" onclick="deleteFood('${item.id}',${fi})">×</button>
             </div>`;
           });
@@ -537,7 +540,7 @@ function renderTimeline() {
 
 function calcItemCalories(item) {
   if (item.type !== 'meal' || item.skipped) return 0;
-  return (item.foods || []).reduce((s, f) => s + (parseInt(f.calories) || 0), 0);
+  return (item.foods || []).reduce((s, f) => s + (parseInt(f.calories) || 0) * (f.qty || 1), 0);
 }
 
 function calcSleepDuration() {
@@ -756,7 +759,7 @@ function renderFpQuickList() {
   }
   // Show top 20
   el.innerHTML = foods.slice(0, 20).map(f =>
-    `<div class="fp-quick-item" onclick="selectFoodFromPopup('${escAttr(f.name)}',${f.calories},'${escAttr(f.shop || '')}')">
+    `<div class="fp-quick-item" onclick="selectFoodFromPopup('${escAttr(f.name)}',${f.calories},'${escAttr(f.shop || '')}')" ondblclick="selectAndAddFood('${escAttr(f.name)}',${f.calories},'${escAttr(f.shop || '')}')" title="单击填入 / 双击直接添加">
       <span class="fpi-name">${escHtml(f.name)}</span>
       ${f.shop ? `<span class="fpi-shop">${escHtml(f.shop)}</span>` : ''}
       <span class="fpi-count">${f.count}次</span>
@@ -769,13 +772,23 @@ function selectFoodFromPopup(name, calories, shop) {
   document.getElementById('fpFoodName').value = name;
   document.getElementById('fpFoodCal').value = calories;
   document.getElementById('fpShop').value = shop;
+  document.getElementById('fpFoodQty').value = 1;
   document.getElementById('fpFoodCal').focus();
+}
+
+function selectAndAddFood(name, calories, shop) {
+  document.getElementById('fpFoodName').value = name;
+  document.getElementById('fpFoodCal').value = calories;
+  document.getElementById('fpShop').value = shop;
+  document.getElementById('fpFoodQty').value = 1;
+  addFoodFromPopup();
 }
 
 function addFoodFromPopup() {
   const name = document.getElementById('fpFoodName').value.trim();
   const cal = parseInt(document.getElementById('fpFoodCal').value);
   const shop = document.getElementById('fpShop').value;
+  const qty = parseInt(document.getElementById('fpFoodQty').value) || 1;
 
   if (!name) { alert('请输入食物名称'); return; }
   if (!cal) { alert('请输入热量'); return; }
@@ -784,7 +797,13 @@ function addFoodFromPopup() {
   const item = day.timeline.find(it => it.id === fpMealId);
   if (item) {
     if (!item.foods) item.foods = [];
-    item.foods.push({ food: name, calories: cal, shop: shop || '' });
+    // Check for duplicate: same name + same shop → merge by incrementing qty
+    const dup = item.foods.find(f => f.food === name && (f.shop || '') === (shop || ''));
+    if (dup) {
+      dup.qty = (dup.qty || 1) + qty;
+    } else {
+      item.foods.push({ food: name, calories: cal, qty, shop: shop || '' });
+    }
   }
   setDay(currentDate, day);
   bumpFoodPreset(name, cal, shop || '');
@@ -838,7 +857,7 @@ function renderExQuick() {
   if (presets.length === 0) { el.innerHTML = ''; return; }
   el.innerHTML = '<span style="font-size:0.7rem;color:#666;">快捷:</span> ' +
     presets.slice(0, 5).map(p =>
-      `<span class="quick-chip" onclick="selectExPreset('${escAttr(p.note)}',${p.calories},${p.duration})" title="使用${p.count}次">${escHtml(p.note)} ${p.calories} kcal</span>`
+      `<span class="quick-chip" onclick="selectExPreset('${escAttr(p.note)}',${p.calories},${p.duration})" ondblclick="selectAndAddExercise('${escAttr(p.note)}',${p.calories},${p.duration})" title="单击填入 / 双击直接添加(使用${p.count}次)">${escHtml(p.note)} ${p.calories} kcal</span>`
     ).join('');
 }
 
@@ -846,6 +865,15 @@ function selectExPreset(note, calories, duration) {
   document.getElementById('exNote').value = note;
   document.getElementById('exCalories').value = calories;
   document.getElementById('exDuration').value = duration;
+}
+
+function selectAndAddExercise(note, calories, duration) {
+  selectExPreset(note, calories, duration);
+  document.getElementById('exTime').focus();
+  // Submit if time is also filled via quick select, or just fill the form
+  if (!document.getElementById('exTime').value) {
+    document.getElementById('exTime').focus();
+  }
 }
 
 function addExercise() {
