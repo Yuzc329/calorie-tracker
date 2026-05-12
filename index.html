@@ -1481,14 +1481,28 @@ async function askAi() {
     // Highlight calorie numbers
     text = text.replace(/(\d+[-~]\d+|\d+)\s*(千卡|kcal|大卡)/gi, '<span class="cal-val">$&</span>');
 
-    // Parse a calorie number for "use" button
-    const calMatch = text.match(/(\d+)\s*(?:千卡|kcal)/i);
+    // Parse food info for "add to meal" button
+    const aiCal = data.choices[0].message.content;
+    const aiName = extractFoodName(aiCal, question);
+    const calMatch = aiCal.match(/(\d+)\s*(?:千卡|kcal)/i);
+    const calVal = calMatch ? calMatch[1] : '';
+    // Try to detect a shop name from the response
+    const shopMatch = aiCal.match(/(?:店|餐厅|食堂)[:：]?\s*([^\s，。,.\d]+)/i) || aiCal.match(/(?:来自|在)\s*([^\s，。,.\d]+(?:店|餐厅|食堂))/i);
+    const aiShop = shopMatch ? shopMatch[1] : '';
 
-    const useBtn = calMatch
-      ? ` <button class="ai-use-btn" onclick="useAiCal(${calMatch[1]})">填入 ${calMatch[1]} kcal</button>`
-      : '';
+    // Build add-to-meal buttons
+    const mealBtns = calVal ? `
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+        <span style="font-size:0.7rem;color:#888;">添加到:</span>
+        <button class="ai-use-btn" onclick="aiAddToMeal('breakfast','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')" title="早餐">🍳</button>
+        <button class="ai-use-btn" onclick="aiAddToMeal('lunch','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')" title="午饭">🥗</button>
+        <button class="ai-use-btn" onclick="aiAddToMeal('dinner','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')" title="晚饭">🍲</button>
+        <button class="ai-use-btn" onclick="aiAddToMeal('snack','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}','afternoon')" title="下午茶">☕</button>
+        <button class="ai-use-btn" onclick="aiAddToMeal('snack','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}','night')" title="夜宵">🌙</button>
+        <button class="ai-use-btn" style="background:#555" onclick="aiAddPresetOnly('${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')" title="仅存快捷">📋</button>
+      </div>` : '';
 
-    msgs.innerHTML += `<div class="ai-msg assistant"><span>${text}${useBtn}</span></div>`;
+    msgs.innerHTML += `<div class="ai-msg assistant"><span>${text}${mealBtns}</span></div>`;
   } catch(e) {
     let errMsg = e.message || '未知错误';
     if (errMsg === 'Failed to fetch' || errMsg.includes('NetworkError')) {
@@ -1502,16 +1516,82 @@ async function askAi() {
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-function useAiCal(cal) {
-  // Fill into the currently open food popup
-  const fpCal = document.getElementById('fpFoodCal');
-  if (fpCal) {
-    fpCal.value = cal;
-    fpCal.focus();
+function extractFoodName(aiText, question) {
+  // Try to extract the food name from AI response or original question
+  // First line of AI response often contains the food name
+  const lines = aiText.split(/[\n\r]+/).filter(l => l.trim());
+  if (lines.length > 0) {
+    const first = lines[0];
+    // Extract text before the first number+unit pattern
+    const nameMatch = first.match(/^(.+?)(?:\d+[-~]\d+|\d+)\s*(?:千卡|kcal|大卡)/);
+    if (nameMatch) return nameMatch[1].replace(/[:：]\s*$/, '').trim();
+    // Or just take first 15 chars as name
+    if (first.length < 30) return first.replace(/[:：].*$/, '').trim();
   }
-  // Also fill exercise modal if open
-  const exCal = document.getElementById('exCalories');
-  if (exCal) exCal.value = cal;
+  // Fallback: use the question itself
+  return question.replace(/多少|热量|卡路里|一个|一份|一碗|100g|100克/g, '').replace(/[?？]/g, '').trim();
+}
+
+function aiAddToMeal(mealType, aiName, calories, shop, snackTime) {
+  const day = getDay(currentDate);
+  const tl = day.timeline;
+
+  let targetId = null;
+
+  if (mealType === 'snack') {
+    // Insert a new snack item
+    const snackId = 'snack_' + Date.now();
+    let insertIdx = tl.length;
+    // Determine position: afternoon = between lunch and dinner, night = between dinner and sleep
+    if (snackTime === 'afternoon') {
+      const dinnerIdx = tl.findIndex(it => it.mealType === 'dinner');
+      insertIdx = dinnerIdx >= 0 ? dinnerIdx : tl.length;
+    } else {
+      const sleepIdx = tl.findIndex(it => it.type === 'sleep');
+      insertIdx = sleepIdx >= 0 ? sleepIdx : tl.length;
+    }
+    const snack = {
+      id: snackId, type: 'meal', mealType: 'snack', time: '', foods: [], skipped: false
+    };
+    tl.splice(insertIdx, 0, snack);
+    setDay(currentDate, day);
+    targetId = snackId;
+  } else {
+    // Find existing meal
+    const existing = tl.find(it => it.type === 'meal' && it.mealType === mealType);
+    if (existing) {
+      existing.skipped = false; // unskip if needed
+      targetId = existing.id;
+    } else {
+      // Create the meal if it doesn't exist
+      const newId = mealType + '_' + Date.now();
+      tl.push({ id: newId, type: 'meal', mealType, time: '', foods: [], skipped: false });
+      sortTimeline(tl);
+      setDay(currentDate, day);
+      targetId = newId;
+    }
+  }
+
+  renderTimeline();
+
+  // Now open the food popup for this meal, pre-filled
+  setTimeout(() => {
+    openFoodPopup(targetId);
+    // Pre-fill form
+    document.getElementById('fpFoodName').value = aiName;
+    document.getElementById('fpFoodCal').value = calories;
+    if (shop) document.getElementById('fpShop').value = shop;
+    document.getElementById('fpFoodQty').value = 1;
+  }, 300);
+}
+
+function aiAddPresetOnly(aiName, calories, shop) {
+  // Just add to presets, no meal assignment
+  bumpFoodPreset(aiName, parseInt(calories) || 0, shop || '');
+  // Show a brief confirmation
+  const msgs = document.getElementById('aiMessages');
+  msgs.innerHTML += `<div class="ai-msg assistant"><span style="color:#81c784;font-size:0.78rem">已存入快捷选择：${escHtml(aiName)} ${calories} kcal</span></div>`;
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
 // Init AI key
