@@ -1603,7 +1603,8 @@ async function askAi() {
         <button class="ai-use-btn" onclick="aiAddToMeal('snack','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}','afternoon')">☕下午茶</button>
         <button class="ai-use-btn" onclick="aiAddToMeal('snack','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}','night')">🌙夜宵</button>
         <button class="ai-use-btn" style="background:#555" onclick="aiAddPresetOnly('${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')">📋仅存</button>
-      </div>` : '';
+      </div>`;
+    }
 
     msgs.innerHTML += `<div class="ai-msg assistant"><span>${text}${mealBtns}</span></div>`;
   } catch(e) {
