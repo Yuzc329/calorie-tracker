@@ -239,8 +239,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .ai-msg.user span { background: #7c4dff; color: #fff; padding: 8px 12px; border-radius: 12px 12px 4px 12px; display: inline-block; max-width: 85%; text-align: left; }
 .ai-msg.assistant span { background: #2a2a4a; color: #e0e0e0; padding: 8px 12px; border-radius: 12px 12px 12px 4px; display: inline-block; max-width: 85%; }
 .ai-msg .cal-val { color: #ffcc80; font-weight: bold; }
-.ai-msg .ai-use-btn { display: inline-block; margin-top: 4px; background: #81c784; color: #0f0f0f; border: none; padding: 3px 10px; border-radius: 10px; cursor: pointer; font-size: 0.7rem; font-weight: bold; }
+.ai-msg .ai-use-btn { display: inline-flex; align-items: center; justify-content: center; margin: 2px; background: #81c784; color: #0f0f0f; border: none; min-width: 36px; min-height: 36px; padding: 6px 12px; border-radius: 10px; cursor: pointer; font-size: 0.85rem; font-weight: bold; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 .ai-msg .ai-use-btn:hover { opacity: 0.8; }
+.ai-msg .ai-meal-row { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 6px; align-items: center; }
+.ai-msg .ai-meal-label { font-size: 0.72rem; color: #888; margin-right: 2px; }
 
 .ai-input-row { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid #2a2a4a; }
 .ai-input-row input { flex: 1; background: #2a2a4a; color: #e0e0e0; border: 1px solid #3a3a5a; padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; }
@@ -259,6 +261,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .ai-typing span:nth-child(2) { animation-delay: 0.2s; }
 .ai-typing span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes aiDot { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+@media (max-width: 500px) {
+  .ai-panel { width: 100%; max-width: 100%; bottom: 0; right: 0; height: 55vh; max-height: 55vh; border-radius: 14px 14px 0 0; }
+  .ai-msg .ai-use-btn { min-width: 44px; min-height: 44px; padding: 8px 14px; font-size: 0.9rem; }
+  .ai-chat-btn { bottom: 16px; right: 16px; width: 56px; height: 56px; font-size: 1.5rem; }
+}
 </style>
 </head>
 <body>
@@ -1492,14 +1500,14 @@ async function askAi() {
 
     // Build add-to-meal buttons
     const mealBtns = calVal ? `
-      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
-        <span style="font-size:0.7rem;color:#888;">添加到:</span>
-        <button class="ai-use-btn" onclick="aiAddToMeal('breakfast','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')" title="早餐">🍳</button>
-        <button class="ai-use-btn" onclick="aiAddToMeal('lunch','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')" title="午饭">🥗</button>
-        <button class="ai-use-btn" onclick="aiAddToMeal('dinner','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')" title="晚饭">🍲</button>
-        <button class="ai-use-btn" onclick="aiAddToMeal('snack','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}','afternoon')" title="下午茶">☕</button>
-        <button class="ai-use-btn" onclick="aiAddToMeal('snack','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}','night')" title="夜宵">🌙</button>
-        <button class="ai-use-btn" style="background:#555" onclick="aiAddPresetOnly('${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')" title="仅存快捷">📋</button>
+      <div class="ai-meal-row">
+        <span class="ai-meal-label">添加到:</span>
+        <button class="ai-use-btn" onclick="aiAddToMeal('breakfast','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')">🍳早餐</button>
+        <button class="ai-use-btn" onclick="aiAddToMeal('lunch','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')">🥗午饭</button>
+        <button class="ai-use-btn" onclick="aiAddToMeal('dinner','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')">🍲晚饭</button>
+        <button class="ai-use-btn" onclick="aiAddToMeal('snack','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}','afternoon')">☕下午茶</button>
+        <button class="ai-use-btn" onclick="aiAddToMeal('snack','${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}','night')">🌙夜宵</button>
+        <button class="ai-use-btn" style="background:#555" onclick="aiAddPresetOnly('${escAttr(aiName)}','${calVal}','${escAttr(aiShop)}')">📋仅存</button>
       </div>` : '';
 
     msgs.innerHTML += `<div class="ai-msg assistant"><span>${text}${mealBtns}</span></div>`;
