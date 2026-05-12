@@ -1375,8 +1375,8 @@ loadDate(currentDate);
     <button class="ai-settings-btn" onclick="toggleAiSettings()" title="设置API Key">⚙</button>
   </div>
   <div class="ai-settings" id="aiSettings">
-    <input type="password" id="aiApiKey" placeholder="输入 Anthropic API Key (sk-ant-...)">
-    <div class="hint">API key 仅保存在你的浏览器中，不会上传</div>
+    <input type="password" id="aiApiKey" placeholder="输入 DeepSeek API Key (sk-...)">
+    <div class="hint">使用 DeepSeek API，key 仅保存在你的浏览器中</div>
   </div>
   <div class="ai-messages" id="aiMessages">
     <div class="ai-msg assistant"><span>你好！可以问我任何食物热量，比如：<br>"回锅肉多少热量"<br>"一碗米饭多少kcal"</span></div>
@@ -1450,34 +1450,37 @@ async function askAi() {
   history.pop();
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
-        system: `你是一个食物热量查询助手。用户会问各种食物的热量。请简洁回复：
+    const systemMsg = `你是一个食物热量查询助手。用户会问各种食物的热量。请简洁回复：
 - 给出每份/每100g的热量（千卡/kcal）
 - 如果用户问的是常见分量，给出该分量的热量
 - 回复格式：食物名（分量）：热量 kcal
 - 尽量简短，3-5句话以内
-- 只回答食物热量相关问题，其他问题礼貌拒绝`,
-        messages: [...history.slice(-6), { role: 'user', content: question }]
+- 只回答食物热量相关问题，其他问题礼貌拒绝`;
+
+    const res = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + key
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        max_tokens: 300,
+        messages: [
+          { role: 'system', content: systemMsg },
+          ...history.slice(-6),
+          { role: 'user', content: question }
+        ]
       })
     });
 
     if (!res.ok) {
       const err = await res.text();
-      throw new Error(err.includes('401') ? 'API Key 无效，请检查设置' : '请求失败: ' + res.status);
+      throw new Error(err.includes('401') || err.includes('403') ? 'API Key 无效，请检查设置' : '请求失败: ' + res.status);
     }
 
     const data = await res.json();
-    let text = data.content[0].text;
+    let text = data.choices[0].message.content;
 
     // Highlight calorie numbers
     text = text.replace(/(\d+[-~]\d+|\d+)\s*(千卡|kcal|大卡)/gi, '<span class="cal-val">$&</span>');
