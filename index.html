@@ -1372,8 +1372,12 @@ loadDate(currentDate);
 <div class="ai-panel" id="aiPanel">
   <div class="ai-header">
     <h3>AI 热量助手</h3>
+    <button class="ai-settings-btn" onclick="toggleAiSettings()" title="设置API Key">⚙</button>
   </div>
-  <div class="ai-settings" id="aiSettings" style="display:none"></div>
+  <div class="ai-settings" id="aiSettings">
+    <input type="password" id="aiApiKey" placeholder="输入 DeepSeek API Key (sk-...)">
+    <div class="hint">免费注册: <a href="https://platform.deepseek.com" target="_blank" style="color:#4fc3f7">platform.deepseek.com</a> → API keys</div>
+  </div>
   <div class="ai-messages" id="aiMessages">
     <div class="ai-msg assistant"><span>你好！可以问我任何食物热量，比如：<br>"回锅肉多少热量"<br>"一碗米饭多少kcal"</span></div>
   </div>
@@ -1390,6 +1394,9 @@ if ('serviceWorker' in navigator) {
 }
 
 // AI Chat
+function getAiKey() { return localStorage.getItem('ai_api_key') || ''; }
+function setAiKey(k) { localStorage.setItem('ai_api_key', k); }
+
 function toggleAiChat() {
   const panel = document.getElementById('aiPanel');
   const btn = document.getElementById('aiChatBtn');
@@ -1397,10 +1404,27 @@ function toggleAiChat() {
   btn.classList.toggle('active');
 }
 
+function toggleAiSettings() {
+  document.getElementById('aiSettings').classList.toggle('show');
+  const key = getAiKey();
+  if (key) document.getElementById('aiApiKey').value = key;
+}
+
+document.getElementById('aiApiKey').addEventListener('change', function() {
+  setAiKey(this.value.trim());
+});
+
 async function askAi() {
   const input = document.getElementById('aiInput');
   const question = input.value.trim();
   if (!question) return;
+
+  const key = getAiKey();
+  if (!key) {
+    document.getElementById('aiSettings').classList.add('show');
+    document.getElementById('aiApiKey').focus();
+    return;
+  }
 
   const msgs = document.getElementById('aiMessages');
   const typing = document.getElementById('aiTyping');
@@ -1422,24 +1446,29 @@ async function askAi() {
     const text = el.querySelector('span').textContent;
     history.push({ role, content: text });
   });
-  // Remove last user msg from history (already in messages)
   history.pop();
 
   try {
-    // Use the Cloudflare Worker proxy — no API key needed in browser
-    const proxyUrl = 'https://calorie-ai-proxy.calorie-ai.workers.dev/chat';
-
-    const res = await fetch(proxyUrl, {
+    const res = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + key
+      },
       body: JSON.stringify({
-        messages: [...history.slice(-6), { role: 'user', content: question }]
+        model: 'deepseek-chat',
+        max_tokens: 300,
+        messages: [
+          { role: 'system', content: '你是食物热量查询助手。简洁回复食物热量。格式：食物名(分量)：热量 kcal。只回答食物热量问题。' },
+          ...history.slice(-6),
+          { role: 'user', content: question }
+        ]
       })
     });
 
     if (!res.ok) {
       const err = await res.text();
-      throw new Error('请求失败: ' + res.status);
+      throw new Error(err.includes('401') || err.includes('403') ? 'API Key 无效，请点⚙重新设置' : '请求失败: ' + res.status);
     }
 
     const data = await res.json();
@@ -1477,6 +1506,11 @@ function useAiCal(cal) {
   if (exCal) exCal.value = cal;
 }
 
+// Init AI key
+(function() {
+  const saved = getAiKey();
+  if (saved) document.getElementById('aiApiKey').value = saved;
+})();
 </script>
 </body>
 </html>
