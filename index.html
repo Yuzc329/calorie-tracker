@@ -219,6 +219,46 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: #1a1a2e; }
 ::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 2px; }
+
+/* AI Chat Widget */
+.ai-chat-btn { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: #7c4dff; color: #fff; border: none; cursor: pointer; font-size: 1.4rem; box-shadow: 0 4px 20px rgba(124,77,255,0.4); z-index: 999; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+.ai-chat-btn:hover { transform: scale(1.1); }
+.ai-chat-btn.active { background: #ff5252; transform: rotate(45deg); }
+
+.ai-panel { display: none; position: fixed; bottom: 80px; right: 20px; width: 360px; max-width: calc(100vw - 40px); height: 480px; max-height: calc(100vh - 120px); background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 14px; flex-direction: column; z-index: 1000; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+.ai-panel.show { display: flex; }
+
+.ai-header { padding: 12px 16px; border-bottom: 1px solid #2a2a4a; display: flex; align-items: center; justify-content: space-between; }
+.ai-header h3 { font-size: 0.95rem; color: #7c4dff; }
+.ai-settings-btn { background: none; border: none; color: #888; cursor: pointer; font-size: 1rem; }
+.ai-settings-btn:hover { color: #fff; }
+
+.ai-messages { flex: 1; overflow-y: auto; padding: 12px; }
+.ai-msg { margin-bottom: 10px; font-size: 0.82rem; line-height: 1.5; }
+.ai-msg.user { text-align: right; }
+.ai-msg.user span { background: #7c4dff; color: #fff; padding: 8px 12px; border-radius: 12px 12px 4px 12px; display: inline-block; max-width: 85%; text-align: left; }
+.ai-msg.assistant span { background: #2a2a4a; color: #e0e0e0; padding: 8px 12px; border-radius: 12px 12px 12px 4px; display: inline-block; max-width: 85%; }
+.ai-msg .cal-val { color: #ffcc80; font-weight: bold; }
+.ai-msg .ai-use-btn { display: inline-block; margin-top: 4px; background: #81c784; color: #0f0f0f; border: none; padding: 3px 10px; border-radius: 10px; cursor: pointer; font-size: 0.7rem; font-weight: bold; }
+.ai-msg .ai-use-btn:hover { opacity: 0.8; }
+
+.ai-input-row { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid #2a2a4a; }
+.ai-input-row input { flex: 1; background: #2a2a4a; color: #e0e0e0; border: 1px solid #3a3a5a; padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; }
+.ai-input-row input:focus { outline: none; border-color: #7c4dff; }
+.ai-input-row button { background: #7c4dff; color: #fff; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.82rem; }
+.ai-input-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ai-settings { display: none; padding: 12px 16px; border-bottom: 1px solid #2a2a4a; }
+.ai-settings.show { display: block; }
+.ai-settings input { width: 100%; background: #2a2a4a; color: #e0e0e0; border: 1px solid #3a3a5a; padding: 6px 10px; border-radius: 6px; font-size: 0.78rem; }
+.ai-settings .hint { font-size: 0.68rem; color: #888; margin-top: 4px; }
+
+.ai-typing { display: none; padding: 4px 12px; }
+.ai-typing.show { display: block; }
+.ai-typing span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #7c4dff; animation: aiDot 1.4s infinite ease-in-out both; margin: 0 2px; }
+.ai-typing span:nth-child(2) { animation-delay: 0.2s; }
+.ai-typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes aiDot { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 </style>
 </head>
 <body>
@@ -1327,10 +1367,155 @@ document.getElementById('basalDisplay').textContent = getBasal();
 document.getElementById('datePicker').value = currentDate;
 loadDate(currentDate);
 </script>
+<!-- AI Chat -->
+<button class="ai-chat-btn" id="aiChatBtn" onclick="toggleAiChat()" title="AI 热量助手">💬</button>
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-header">
+    <h3>AI 热量助手</h3>
+    <button class="ai-settings-btn" onclick="toggleAiSettings()" title="设置API Key">⚙</button>
+  </div>
+  <div class="ai-settings" id="aiSettings">
+    <input type="password" id="aiApiKey" placeholder="输入 Anthropic API Key (sk-ant-...)">
+    <div class="hint">API key 仅保存在你的浏览器中，不会上传</div>
+  </div>
+  <div class="ai-messages" id="aiMessages">
+    <div class="ai-msg assistant"><span>你好！可以问我任何食物热量，比如：<br>"回锅肉多少热量"<br>"一碗米饭多少kcal"</span></div>
+  </div>
+  <div class="ai-typing" id="aiTyping"><span></span><span></span><span></span></div>
+  <div class="ai-input-row">
+    <input type="text" id="aiInput" placeholder="问食物热量..." onkeydown="if(event.key==='Enter')askAi()">
+    <button id="aiSendBtn" onclick="askAi()">发送</button>
+  </div>
+</div>
+
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
+
+// AI Chat
+function getAiKey() { return localStorage.getItem('ai_api_key') || ''; }
+function setAiKey(k) { localStorage.setItem('ai_api_key', k); }
+
+function toggleAiChat() {
+  const panel = document.getElementById('aiPanel');
+  const btn = document.getElementById('aiChatBtn');
+  panel.classList.toggle('show');
+  btn.classList.toggle('active');
+}
+
+function toggleAiSettings() {
+  document.getElementById('aiSettings').classList.toggle('show');
+  const key = getAiKey();
+  if (key) document.getElementById('aiApiKey').value = key;
+}
+
+document.getElementById('aiApiKey').addEventListener('change', function() {
+  setAiKey(this.value.trim());
+});
+
+async function askAi() {
+  const input = document.getElementById('aiInput');
+  const question = input.value.trim();
+  if (!question) return;
+
+  const key = getAiKey();
+  if (!key) {
+    document.getElementById('aiSettings').classList.add('show');
+    document.getElementById('aiApiKey').focus();
+    return;
+  }
+
+  const msgs = document.getElementById('aiMessages');
+  const typing = document.getElementById('aiTyping');
+  const btn = document.getElementById('aiSendBtn');
+
+  // Add user message
+  msgs.innerHTML += `<div class="ai-msg user"><span>${escHtml(question)}</span></div>`;
+  input.value = '';
+  input.focus();
+  msgs.scrollTop = msgs.scrollHeight;
+  typing.classList.add('show');
+  btn.disabled = true;
+
+  // Build conversation
+  const history = [];
+  const msgEls = msgs.querySelectorAll('.ai-msg');
+  msgEls.forEach(el => {
+    const role = el.classList.contains('user') ? 'user' : 'assistant';
+    const text = el.querySelector('span').textContent;
+    history.push({ role, content: text });
+  });
+  // Remove last user msg from history (already in messages)
+  history.pop();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        system: `你是一个食物热量查询助手。用户会问各种食物的热量。请简洁回复：
+- 给出每份/每100g的热量（千卡/kcal）
+- 如果用户问的是常见分量，给出该分量的热量
+- 回复格式：食物名（分量）：热量 kcal
+- 尽量简短，3-5句话以内
+- 只回答食物热量相关问题，其他问题礼貌拒绝`,
+        messages: [...history.slice(-6), { role: 'user', content: question }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err.includes('401') ? 'API Key 无效，请检查设置' : '请求失败: ' + res.status);
+    }
+
+    const data = await res.json();
+    let text = data.content[0].text;
+
+    // Highlight calorie numbers
+    text = text.replace(/(\d+[-~]\d+|\d+)\s*(千卡|kcal|大卡)/gi, '<span class="cal-val">$&</span>');
+
+    // Parse a calorie number for "use" button
+    const calMatch = text.match(/(\d+)\s*(?:千卡|kcal)/i);
+
+    const useBtn = calMatch
+      ? ` <button class="ai-use-btn" onclick="useAiCal(${calMatch[1]})">填入 ${calMatch[1]} kcal</button>`
+      : '';
+
+    msgs.innerHTML += `<div class="ai-msg assistant"><span>${text}${useBtn}</span></div>`;
+  } catch(e) {
+    msgs.innerHTML += `<div class="ai-msg assistant"><span style="color:#ff5252">${escHtml(e.message)}</span></div>`;
+  }
+
+  typing.classList.remove('show');
+  btn.disabled = false;
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function useAiCal(cal) {
+  // Fill into the currently open food popup
+  const fpCal = document.getElementById('fpFoodCal');
+  if (fpCal) {
+    fpCal.value = cal;
+    fpCal.focus();
+  }
+  // Also fill exercise modal if open
+  const exCal = document.getElementById('exCalories');
+  if (exCal) exCal.value = cal;
+}
+
+// Init AI key if previously saved
+(function() {
+  const saved = getAiKey();
+  if (saved) document.getElementById('aiApiKey').value = saved;
+})();
 </script>
 </body>
 </html>
