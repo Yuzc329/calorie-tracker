@@ -445,16 +445,16 @@ function makeDefaultTimeline() {
 
 function sortTimeline(tl) {
   tl.sort((a, b) => {
+    // Sleep always at the bottom, wakeUp always at the top
+    if (a.type === 'sleep' && b.type !== 'sleep') return 1;
+    if (b.type === 'sleep' && a.type !== 'sleep') return -1;
+    if (a.type === 'wakeUp' && b.type !== 'wakeUp') return -1;
+    if (b.type === 'wakeUp' && a.type !== 'wakeUp') return 1;
     const ta = a.time || '';
     const tb = b.time || '';
-    // Only sort by time if BOTH have a time set; otherwise keep original order
     if (ta && tb && ta !== tb) return ta.localeCompare(tb);
-    if (ta && tb && ta === tb) {
-      const order = { wakeUp: 0, meal: 1, exercise: 2, sleep: 3 };
-      return (order[a.type] || 2) - (order[b.type] || 2);
-    }
-    // One or both have no time — keep stable order
-    return 0;
+    const order = { wakeUp: 0, meal: 1, exercise: 2, sleep: 3 };
+    return (order[a.type] || 2) - (order[b.type] || 2);
   });
 }
 
@@ -495,7 +495,7 @@ function renderTimeline() {
     html += `<div class="tl-row">`;
 
     // Time
-    html += `<div class="tl-time"><input type="time" value="${escAttr(item.time || '')}" onchange="updateItemTime('${item.id}', this.value)" title="时间"></div>`;
+    html += `<div class="tl-time"><input type="time" step="60" value="${escAttr(item.time || '')}" onchange="updateItemTime('${item.id}', this.value)" title="时间"></div>`;
 
     // Icon
     const icons = { wakeUp: '🌅', meal: '', exercise: '🏃', sleep: '🌙' };
