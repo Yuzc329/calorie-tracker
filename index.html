@@ -495,7 +495,7 @@ function renderTimeline() {
     html += `<div class="tl-row">`;
 
     // Time
-    html += `<div class="tl-time"><input type="time" step="1" value="${escAttr(item.time || '')}" onchange="updateItemTime('${item.id}', this.value)" title="时间"></div>`;
+    html += `<div class="tl-time"><input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${escAttr(item.time || '')}" oninput="formatTimeInput(this)" onblur="updateItemTime('${item.id}', this.value)" title="时间-直接输入4位数字"></div>`;
 
     // Icon
     const icons = { wakeUp: '🌅', meal: '', exercise: '🏃', sleep: '🌙' };
@@ -647,10 +647,26 @@ function updateSummary() {
   netCard.classList.toggle('surplus', net < 0);
 }
 
+function formatTimeInput(el) {
+  let val = el.value.replace(/[^0-9]/g, '').slice(0, 4);
+  if (val.length > 2) {
+    val = val.slice(0, 2) + ':' + val.slice(2);
+  }
+  el.value = val;
+}
+
 function updateItemTime(id, time) {
   const day = getDay(currentDate);
   const item = day.timeline.find(it => it.id === id);
-  if (item) { item.time = time; sortTimeline(day.timeline); }
+  // Only save valid HH:MM format
+  if (item && /^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+    item.time = time;
+  } else if (item && time === '') {
+    item.time = '';
+  }
+  // Re-format on blur even if invalid
+  if (item) { item.time = time; }
+  sortTimeline(day.timeline);
   setDay(currentDate, day);
   renderTimeline();
 }
