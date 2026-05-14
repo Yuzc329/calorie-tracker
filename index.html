@@ -36,8 +36,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .tl-row { display: flex; align-items: stretch; gap: 0; border-bottom: 1px solid #1a1a3a; }
 .tl-row:hover { background: #141428; }
 
-.tl-time { width: 130px; min-width: 130px; display: flex; align-items: center; justify-content: center; padding: 10px 6px; }
-.tl-time input { background: transparent; color: #fff; border: none; font-size: 1.5rem; font-weight: 700; width: 118px; text-align: center; padding: 2px 0; border-radius: 3px; font-family: 'Segoe UI', 'SF Pro Display', 'Helvetica Neue', sans-serif; letter-spacing: 3px; }
+.tl-time { width: 140px; min-width: 140px; display: flex; align-items: center; justify-content: center; padding: 10px 6px; }
+.tl-time input { background: transparent; color: #fff; border: none; font-size: 1.3rem; font-weight: 700; width: 130px; text-align: center; padding: 2px 4px; border-radius: 3px; font-family: 'Segoe UI', 'SF Pro Display', 'Helvetica Neue', sans-serif; letter-spacing: 4px; font-variant-numeric: tabular-nums; }
+.tl-time input::placeholder { color: #3a3a5a; letter-spacing: 4px; }
 .tl-time input:focus { background: #2a2a4a; outline: none; }
 
 .tl-icon { width: 36px; min-width: 36px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; padding: 10px 0; }
@@ -495,7 +496,7 @@ function renderTimeline() {
     html += `<div class="tl-row">`;
 
     // Time
-    html += `<div class="tl-time"><input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${escAttr(item.time || '')}" oninput="formatTimeInput(this)" onblur="updateItemTime('${item.id}', this.value)" title="时间-直接输入4位数字"></div>`;
+    html += `<div class="tl-time"><input type="text" inputmode="numeric" maxlength="5" placeholder="--:--" value="${escAttr(item.time || '')}" oninput="formatTimeInput(this)" onblur="updateItemTime('${item.id}', this.value)" title="时间-直接输入4位数字"></div>`;
 
     // Icon
     const icons = { wakeUp: '🌅', meal: '', exercise: '🏃', sleep: '🌙' };
