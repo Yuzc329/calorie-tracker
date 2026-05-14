@@ -495,7 +495,7 @@ function renderTimeline() {
     html += `<div class="tl-row">`;
 
     // Time
-    html += `<div class="tl-time"><input type="time" step="60" value="${escAttr(item.time || '')}" onchange="updateItemTime('${item.id}', this.value)" title="时间"></div>`;
+    html += `<div class="tl-time"><input type="time" step="1" value="${escAttr(item.time || '')}" onchange="updateItemTime('${item.id}', this.value)" title="时间"></div>`;
 
     // Icon
     const icons = { wakeUp: '🌅', meal: '', exercise: '🏃', sleep: '🌙' };
