@@ -650,6 +650,12 @@ function updateSummary() {
 
 function formatTimeInput(el) {
   let val = el.value.replace(/[^0-9]/g, '').slice(0, 4);
+  if (val.length >= 4) {
+    val = val.slice(0, 2) + ':' + val.slice(2, 4);
+    el.value = val;
+    el.blur();
+    return;
+  }
   if (val.length > 2) {
     val = val.slice(0, 2) + ':' + val.slice(2);
   }
